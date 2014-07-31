@@ -72,25 +72,14 @@ module Rfm
       # type of the field. You'll never need to do this: Rfm does it automatically for you when you
       # access field data through the Record object.
       def coerce(value)
-        return nil if (value.nil? or value.empty?)
-        case result
-        when "text"      then value
-        when "number"    then BigDecimal.new(value.to_s)
-        when "date"      then Date.strptime(value, resultset.date_format)
-        when "time"      then DateTime.strptime("1/1/-4712 #{value}", "%m/%d/%Y #{resultset.time_format}")
-        when "timestamp" then DateTime.strptime(value, resultset.timestamp_format)
-        when "container" then
-        	resultset_meta = resultset.instance_variable_get(:@meta)
-        	if resultset_meta && resultset_meta['doctype'] && value.to_s[/\?/]
-        		URI.parse(resultset_meta['doctype'].last.to_s).tap{|uri| uri.path, uri.query = value.split('?')}
-        	else
-        		value
-        	end
-        else nil
+        if value.respond_to? :map
+          value.map{|val| coerce_value(val)}
+        else
+          coerce_value(value)
         end
-#       rescue
-#         puts("ERROR in Field#coerce:", name, value, result, $!)
-#         nil
+      rescue
+        puts("ERROR in Field#coerce:", name, value, result, $!)
+        nil
       end
       
       def get_mapped_name
@@ -107,6 +96,27 @@ module Rfm
 				cursor.parent.object[get_mapped_name.split('::').last.to_s.downcase] = self
 				#puts ['FIELD_portal_callback', name, cursor.parent.object.object_id, cursor.parent.tag, cursor.parent.object[name.split('::').last.to_s.downcase]].join(', ')
 			end
+
+      private
+
+      def coerce_value(value)
+        return nil if (value.nil? or value.empty?)
+        case result
+        when "text"      then value
+        when "number"    then BigDecimal.new(value.to_s)
+        when "date"      then Date.strptime(value, resultset.date_format)
+        when "time"      then DateTime.strptime("1/1/-4712 #{value}", "%m/%d/%Y #{resultset.time_format}")
+        when "timestamp" then DateTime.strptime(value, resultset.timestamp_format)
+        when "container" then
+          resultset_meta = resultset.instance_variable_get(:@meta)
+          if resultset_meta && resultset_meta['doctype'] && value.to_s[/\?/]
+            URI.parse(resultset_meta['doctype'].last.to_s).tap{|uri| uri.path, uri.query = value.split('?')}
+          else
+            value
+          end
+        else nil
+        end
+      end
       
     end # Field
   end # Metadata
